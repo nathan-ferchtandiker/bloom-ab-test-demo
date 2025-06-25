@@ -1,37 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import PhonePreview from './PhonePreview';
 import AbTestPhonePreview from './AbTestPhonePreview';
 import type { BloomApp } from './types';
-import { posthog } from '../lib/posthog';
 
 export default function PhonePreviewContainer({ apps, a_b_test = true }: { apps: BloomApp[]; a_b_test?: boolean }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [experimentVariant, setExperimentVariant] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (a_b_test && typeof window !== 'undefined') {
-      // Get the experiment variant from PostHog
-      const variant = posthog.getFeatureFlag('app-preference-test');
-      setExperimentVariant(typeof variant === 'string' ? variant : null);
-      
-      // Track experiment exposure
-      posthog.capture('experiment_viewed', {
-        experiment_name: 'app-preference-test',
-        variant: variant,
-      });
-    }
-  }, [a_b_test]);
+  // For demonstration, we can just assign a static variant label if needed
+  const experimentVariant = null;
 
   const handleAppSelection = (appId: string) => {
     setSelected(appId);
-    
-    // Track the selection event
-    posthog.capture('app_preference_selected', {
-      experiment_name: 'app-preference-test',
-      variant: experimentVariant,
-      selected_app_id: appId,
-      apps_count: apps.length,
-    });
   };
 
   if (!a_b_test) {
