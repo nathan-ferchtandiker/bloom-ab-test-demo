@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import PhonePreviewContainer from './components/PhonePreviewContainer';
 import Chat from './components/Chat';
 import type { BloomApp } from './components/types';
-import { posthog } from './lib/posthog';
 
 const getDefaultApp = (): BloomApp => ({ id: 'default', image: null});
 
@@ -13,11 +12,6 @@ export default function Home() {
 
   const handleSendMessage = async (message: string) => {
     try {
-      // Track chat message sent
-      posthog.capture('chat_message_sent', {
-        message_length: message.length,
-      });
-
       const res = await fetch('http://localhost:5000/api/app', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -27,29 +21,12 @@ export default function Home() {
       const data = await res.json();
       if (Array.isArray(data.apps)) {
         setApps(data.apps);
-        
-        // Track successful app generation
-        posthog.capture('apps_generated', {
-          apps_count: data.apps.length,
-          message_length: message.length,
-        });
       } else {
         setApps([getDefaultApp()]);
-        
-        // Track fallback to default app
-        posthog.capture('apps_generation_fallback', {
-          message_length: message.length,
-        });
       }
     } catch (err) {
       console.error(err);
       setApps([getDefaultApp()]);
-      
-      // Track error
-      posthog.capture('apps_generation_error', {
-        error: err instanceof Error ? err.message : 'Unknown error',
-        message_length: message.length,
-      });
     }
   };
 
