@@ -31,6 +31,10 @@ export default function Home() {
     }
   };
 
+  const handleSelectApp = (selectedId: string) => {
+    setApps(apps => apps.filter(app => app.id === selectedId));
+  };
+
   return (
     <main className="flex min-h-screen bg-gray-50">     
       <section className="w-full max-w-md flex flex-col border-r border-gray-200 bg-white h-screen">
@@ -39,7 +43,7 @@ export default function Home() {
       </section>
 
       <section className="flex-1 flex items-center justify-center bg-gray-50">
-        <PhonePreviewContainer apps={apps} a_b_test={true} />
+        <PhonePreviewContainer apps={apps} a_b_test={true} onSelectApp={handleSelectApp} />
       </section>
     </main>
   );

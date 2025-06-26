@@ -7,7 +7,7 @@ app = Flask(__name__)
 CORS(app)
 
 @app.route("/api/app", methods=["POST"])
-def hello_world():
+def handle_bloom_chat_messgae():
     data = request.get_json()
     print("Received message:", data.get("message"))
     app1_id = str(uuid.uuid4())
@@ -24,3 +24,4 @@ def hello_world():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+    

@@ -1,19 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PhonePreview from './PhonePreview';
 import AbTestPhonePreview from './AbTestPhonePreview';
 import type { BloomApp } from './types';
 
-export default function PhonePreviewContainer({ apps, a_b_test = true }: { apps: BloomApp[]; a_b_test?: boolean }) {
+export default function PhonePreviewContainer({ apps, a_b_test = true, onSelectApp }: { apps: BloomApp[]; a_b_test?: boolean; onSelectApp?: (selectedId: string) => void }) {
   const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelected(null);
+  }, [apps]);
 
   // For demonstration, we can just assign a static variant label if needed
   const experimentVariant = null;
 
   const handleAppSelection = (appId: string) => {
     setSelected(appId);
+    if (onSelectApp) {
+      onSelectApp(appId);
+    }
   };
 
-  if (!a_b_test) {
+  if (!a_b_test || apps.length <= 1) {
     return (
       <div className="flex gap-6 items-center justify-center p-4 bg-gray-100 rounded-2xl shadow-md">
         {apps.map(app => (
@@ -32,17 +39,27 @@ export default function PhonePreviewContainer({ apps, a_b_test = true }: { apps:
         )}
       </div>
       <div className="flex gap-6 items-center justify-center">
-        {apps
-          .filter(app => selected === null || selected === app.id)
-          .map((app, idx) => (
-            <AbTestPhonePreview
-              key={app.id}
-              app={app}
-              variantLabel={`Variant ${String.fromCharCode(65 + idx)}`}
-              onSelect={() => handleAppSelection(app.id)}
-              disabled={selected !== null}
-            />
-          ))}
+        {selected === null
+          ? apps.map((app, idx) => (
+              <AbTestPhonePreview
+                key={app.id}
+                app={app}
+                variantLabel={`Variant ${String.fromCharCode(65 + idx)}`}
+                onSelect={() => handleAppSelection(app.id)}
+                disabled={selected !== null}
+              />
+            ))
+          : apps
+              .filter(app => app.id === selected)
+              .map((app, idx) => (
+                <AbTestPhonePreview
+                  key={app.id}
+                  app={app}
+                  variantLabel={`Variant ${String.fromCharCode(65 + idx)}`}
+                  onSelect={() => {}}
+                  disabled={true}
+                />
+              ))}
       </div>
     </div>
   );

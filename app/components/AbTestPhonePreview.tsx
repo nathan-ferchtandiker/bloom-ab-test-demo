@@ -15,9 +15,17 @@ const AbTestPhonePreview: React.FC<AbTestPhonePreviewProps> = ({ app, variantLab
       <button
         onClick={onSelect}
         disabled={disabled}
-        className={`border rounded-xl p-2 bg-white shadow hover:shadow-lg transition ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`border-none bg-transparent p-0 m-0 focus:outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        <img src={app.image ?? ''} alt={variantLabel} className="w-32 h-64 object-cover rounded-lg" />
+        <div className="relative w-[240px] h-[480px] bg-white rounded-[40px] shadow-xl border-4 border-gray-200 flex flex-col overflow-hidden">
+          <div className="flex-1 flex items-center justify-center text-gray-500 text-base">
+            {app.image ? (
+              <img src={app.image ?? ''} alt={variantLabel} className="max-h-full max-w-full object-contain" />
+            ) : (
+              'Create an app by typing'
+            )}
+          </div>
+        </div>
       </button>
     </div>
   );
