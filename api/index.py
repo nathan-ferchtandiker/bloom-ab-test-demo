@@ -12,6 +12,11 @@ import settings
 app = Flask(__name__)
 CORS(app)
 
+@app.route("/api/hello", methods=["GET"])
+def hello_world():
+    return jsonify({"message": "Hello, World!"})
+
+
 @app.route("/api/app", methods=["POST"])
 def handle_bloom_chat_messgae():
     data = request.get_json()
