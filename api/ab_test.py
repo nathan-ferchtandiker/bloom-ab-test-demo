@@ -1,5 +1,9 @@
 import random
 import database_client as db
+import bloom
+import settings
+
+
 
 def is_ab_test(data):
     """
@@ -10,24 +14,22 @@ def is_ab_test(data):
 
 def get_ab_test_apps(data, db_client):
     """
-    Returns 2 random apps from the database for A/B testing.
+    Returns 2 random apps from different pipelines for A/B testing.
     Falls back to creating a single app if not enough apps are available.
     """
-    bloom_apps = db_client.read("bloom_apps")
-    if bloom_apps and len(bloom_apps) >= 2:
-        available_apps = list(bloom_apps.values())
-        selected_apps = random.sample(available_apps, 2)
-        return [{"id": app["id"], "image": app["image"]} for app in selected_apps]
-    else:
-        # Fallback to single app if not enough apps in database
-        import bloom
-        app_obj = bloom.create_bloom_app_from_chat_message(data.get("message", ""), db_client)
-        return [{"id": app_obj["id"], "image": app_obj["image"]}]
+    # Get one app from each of two different pipelines
+    selected_pipelines = [settings.OLD_PIPELINE, settings.NEW_PIPELINE]
+    created_bloom_apps = []
+    for pipeline in selected_pipelines:
+            # Fallback: create a new app using bloom
+            app = bloom.create_bloom_app_from_chat_message(data.get("message", ""), db_client, pipeline)
+            created_bloom_apps.append(app)
+    
+    return created_bloom_apps
 
 def get_single_app(data, db_client):
     """
     Returns a single app created from the chat message.
     """
-    import bloom
-    app_obj = bloom.create_bloom_app_from_chat_message(data.get("message", ""), db_client)
+    app_obj = bloom.create_bloom_app_from_chat_message(data.get("message", ""), db_client, "chat")
     return [{"id": app_obj["id"], "image": app_obj["image"]}]

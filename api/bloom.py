@@ -1,26 +1,23 @@
 from typing import Dict
 import random
+import hashlib
+import base64
+import database_client as db
+import settings
 
-def create_bloom_app_from_chat_message(message: str, db) -> Dict[str, str]:
+def create_bloom_app_from_chat_message(message: str, db_client, pipeline: str = settings.OLD_PIPELINE):
     """
-    Simulates creating a BloomApp from a chat message.
-    Returns a BloomApp dict with a unique id, a placeholder image, and the origin_pipeline as 'chat'.
+    Simulates creating a BloomApp from a chat message and pipeline.
+    Returns a BloomApp dict with a unique id, an image from the specified pipeline, and the origin_pipeline.
     """
-
-    # Use the message to generate a unique id
+    # Try to get a random app from the specified pipeline
+    pipeline_apps = db_client.read({"origin_pipeline": pipeline})
     
-    bloom_apps = db.read("bloom_apps")
-    if not bloom_apps:
-        return None
-    return random.choice(list(bloom_apps.values()))
-
-def read_random_bloom_app_from_db(db):
-    """
-    Reads a random BloomApp from the database (db).
-    Returns a BloomApp dict or None if no apps exist.
-    """
-    bloom_apps = db.read("bloom_apps")
-    if not bloom_apps:
-        return None
-    return random.choice(list(bloom_apps.values()))
+    if pipeline_apps:
+        # Get a random app from this pipeline
+        app = random.choice(list(pipeline_apps.values()))
+        return app
+    else:
+        # Fallback: raise an error if no apps exist for this pipeline
+        raise RuntimeError(f"No apps found for pipeline: {pipeline}")
 

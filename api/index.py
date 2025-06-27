@@ -7,6 +7,7 @@ from datatypes import BloomApp
 import database_client as db
 import bloom
 import ab_test
+import settings
 
 app = Flask(__name__)
 CORS(app)
@@ -16,7 +17,6 @@ def handle_bloom_chat_messgae():
     data = request.get_json()
     chat_message = data.get('message')
     print("Received message:", data.get("message"))
-    
     
     is_ab_test = ab_test.is_ab_test(data)
     
