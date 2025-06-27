@@ -26,10 +26,3 @@ def get_ab_test_apps(data, db_client):
             created_bloom_apps.append(app)
     
     return created_bloom_apps
-
-def get_single_app(data, db_client):
-    """
-    Returns a single app created from the chat message.
-    """
-    app_obj = bloom.create_bloom_app_from_chat_message(data.get("message", ""), db_client, "chat")
-    return [{"id": app_obj["id"], "image": app_obj["image"]}]
