@@ -31,8 +31,25 @@ export default function Home() {
     }
   };
 
-  const handleSelectApp = (selectedId: string) => {
-    setApps(apps => apps.filter(app => app.id === selectedId));
+  const handleSelectApp = async (selectedId: string) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    try {
+      const res = await fetch(`${apiUrl}/api/app/selection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selected_id: selectedId,
+          choices: apps.map(app => app.id),
+          user_id: 'demo-user', // Replace with real user id if available
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to send selection');
+      // Optionally, you can check the response here
+      setApps(apps => apps.filter(app => app.id === selectedId));
+    } catch (err) {
+      console.error(err);
+      // Optionally, handle error (e.g., show notification)
+    }
   };
 
   return (
