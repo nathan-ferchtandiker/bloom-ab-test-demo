@@ -2,7 +2,7 @@ import os
 import base64
 import hashlib
 
-storage = {}  # simulating a real database in memory
+storage = {}  # simulating a real database in memory with kv
 
 
 from typing import Any, Optional

@@ -1,9 +1,12 @@
 from flask import Flask, request, jsonify
 import base64
 import uuid
+import random
 from flask_cors import CORS
 from datatypes import BloomApp 
 import database_client as db
+import bloom
+import ab_test
 
 app = Flask(__name__)
 CORS(app)
@@ -11,23 +14,22 @@ CORS(app)
 @app.route("/api/app", methods=["POST"])
 def handle_bloom_chat_messgae():
     data = request.get_json()
+    chat_message = data.get('message')
     print("Received message:", data.get("message"))
-    app1_id = str(uuid.uuid4())
-    app2_id = str(uuid.uuid4())
-    with open("api/resroucre/a/1.png", "rb") as image_file:
-        encoded1 = base64.b64encode(image_file.read()).decode("utf-8")
-    with open("api/resroucre/b/3.png", "rb") as image_file:
-        encoded2 = base64.b64encode(image_file.read()).decode("utf-8")
-    apps: list[BloomApp] = [
-        {"id": app1_id, "image": f"data:image/png;base64,{encoded1}", "origin_pipeline": "default_pipeline"},
-        {"id": app2_id, "image": f"data:image/png;base64,{encoded2}", "origin_pipeline": "default_pipeline"}
-    ]
-    # Only send id and image to the client
-    public_apps = [{"id": app["id"], "image": app["image"]} for app in apps]
+    
+    
+    is_ab_test = ab_test.is_ab_test(data)
+    
+    # Use ab_test module to handle A/B test logic
+    if is_ab_test:
+        public_apps = ab_test.get_ab_test_apps(data, db)
+    else:
+        public_apps = bloom.create_bloom_app_from_chat_message(chat_message, db)
+    
     return jsonify({"apps": public_apps})
 
 @app.route("/api/app/selection", methods=["POST"])
-def capture_app_selection():
+def capture_app_selection_event():
     data = request.get_json()
     selected_id = data.get("selected_id")
     choices: list[str] = data.get("choices")  # list of app ids
