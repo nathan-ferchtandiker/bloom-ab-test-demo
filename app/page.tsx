@@ -44,19 +44,33 @@ export default function Home() {
     try {
       // Send selection to PostHog for A/B testing analysis
       if (typeof window !== 'undefined' && window.posthog) {
-        window.posthog.capture('ab_test_selection', {
-          selected_id: selectedId,
-          choices: allApps.map(app => app.id),
-          user_id: 'demo-user',
+        const selectedApp = allApps.find(app => app.id === selectedId);
+        
+        window.posthog.capture('ab_test_origin_pipeline', {
+          // List of apps
+          all_apps: allApps.map(app => app.id),
+          
+          // List of pipelines
+          all_pipelines: allApps.map(app => app.origin_pipeline),
+          
+          // Which app was selected
+          selected_app: selectedId,
+          
+          // Which pipeline was selected
+          selected_pipeline: selectedApp?.origin_pipeline,
+          
+          // Timestamp
           timestamp: new Date().toISOString(),
-          // A/B testing specific properties
-          experiment_name: 'origin_pipeline_test',
-          variant: selectedId, // The selected pipeline variant
-          all_variants: allApps.map(app => app.id), // All available variants
-          conversion: true, // This represents a successful selection/conversion
+          
+          // User ID
+          user_id: 'demo-user',
+          
           // Additional context for analysis
           total_choices: allApps.length,
-          selection_index: allApps.findIndex(app => app.id === selectedId)
+          selection_index: allApps.findIndex(app => app.id === selectedId),
+          
+          // A/B testing specific properties
+          experiment_name: 'demo_test'
         });
       }
       
