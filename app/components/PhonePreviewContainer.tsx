@@ -24,7 +24,10 @@ export default function PhonePreviewContainer({ apps, a_b_test = true, onSelectA
     return (
       <div className="flex gap-6 items-center justify-center p-4 bg-gray-100 rounded-2xl shadow-md">
         {apps.map(app => (
-          <PhonePreview key={app.id} image={app.image} />
+          <div key={app.id} className="flex flex-col items-center">
+            <PhonePreview image={app.image} />
+            <div className="mt-2 text-xs text-gray-400">Pipeline: {app.origin_pipeline ?? 'unknown'}</div>
+          </div>
         ))}
       </div>
     );

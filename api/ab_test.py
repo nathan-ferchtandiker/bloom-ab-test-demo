@@ -25,4 +25,6 @@ def get_ab_test_apps(data, db_client):
             app = bloom.create_bloom_app_from_chat_message(data.get("message", ""), db_client, pipeline)
             created_bloom_apps += app
     
+    # Shuffle the apps to randomize the order for A/B testing
+    random.shuffle(created_bloom_apps)
     return created_bloom_apps

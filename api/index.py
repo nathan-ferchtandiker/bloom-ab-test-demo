@@ -8,6 +8,11 @@ import database_client as db
 import bloom
 import ab_test
 import settings
+import posthog_client
+from dotenv import load_dotenv
+
+load_dotenv('.env.local')
+
 
 app = Flask(__name__)
 CORS(app)
@@ -38,13 +43,37 @@ def capture_app_selection_event():
     data = request.get_json()
     selected_id = data.get("selected_id")
     choices: list[str] = data.get("choices")  # list of app ids
+    app_selections = data.get("app_selections")  # list of dicts with app_id and is_selected
     user_id = data.get("user_id")  # optional, if you want to track user
 
     # For demonstration, just print the event. In production, store in DB or log.
     print(f"User selected app: {selected_id} from choices: {choices} (user_id: {user_id})")
+    
+    # Print each app's selection status
+    if app_selections:
+        print("App selection details:")
+        for app_selection in app_selections:
+            app_id = app_selection.get("app_id")
+            is_selected = app_selection.get("is_selected")
+            status = "SELECTED" if is_selected else "NOT SELECTED"
+            print(f"  - App {app_id}: {status}")
+
+    # Send PostHog event
+    event_properties = {
+        "selected_app_id": selected_id,
+        "total_choices": len(choices),
+        "choices": choices,
+        "app_selections": app_selections
+    }
+    
+    posthog_client.capture_private_event(
+        event="app_selected",
+        distinct_id=user_id or "anonymous",
+        properties=event_properties
+    )
 
     # Optionally, you could return some confirmation or next step
-    return jsonify({"status": "success", "selected_id": selected_id}), 200
+    return jsonify({"status": "success", "selected_id": selected_id, "app_selections": app_selections}), 200
 
 
 if __name__ == "__main__":

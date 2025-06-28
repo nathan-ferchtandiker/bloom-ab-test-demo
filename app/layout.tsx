@@ -13,8 +13,8 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  const posthogDomain = process.env.NEXT_PUBLIC_POSTHOG_DOMAIN;
+  const posthogKey = process.env.PUBLIC_POSTHOG_KEY;
+  const posthogDomain = process.env.PUBLIC_POSTHOG_DOMAIN;
 
   return (
     <html lang="en">
