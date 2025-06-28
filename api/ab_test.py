@@ -23,6 +23,6 @@ def get_ab_test_apps(data, db_client):
     for pipeline in selected_pipelines:
             # Fallback: create a new app using bloom
             app = bloom.create_bloom_app_from_chat_message(data.get("message", ""), db_client, pipeline)
-            created_bloom_apps.append(app)
+            created_bloom_apps += app
     
     return created_bloom_apps

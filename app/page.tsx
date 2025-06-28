@@ -13,7 +13,7 @@ export default function Home() {
   const handleSendMessage = async (message: string) => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-      const res = await fetch(`${apiUrl}/api/app`, {
+      const res = await fetch('/api/app', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message }),
@@ -34,13 +34,13 @@ export default function Home() {
   const handleSelectApp = async (selectedId: string) => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     try {
-      const res = await fetch(`${apiUrl}/api/app/selection`, {
+      const res = await fetch(`/api/app/selection`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           selected_id: selectedId,
           choices: apps.map(app => app.id),
-          user_id: 'demo-user', // Replace with real user id if available
+          user_id: 'demo-user',
         }),
       });
       if (!res.ok) throw new Error('Failed to send selection');
