@@ -76,3 +76,39 @@ def capture_private_event(event: str, distinct_id: str, properties: Optional[Dic
     """
     posthog_private_client.capture(event, distinct_id, properties, timestamp)
 
+
+def fetch_events(event_name: str = None, after: str = None, before: str = None, limit: int = 100):
+    """
+    Fetch events from PostHog using the private API.
+    Args:
+        event_name: Filter by event name (optional)
+        after: ISO date string for filtering events after this date (optional)
+        before: ISO date string for filtering events before this date (optional)
+        limit: Max number of events to fetch (default 100)
+    Returns:
+        JSON response from PostHog API
+    """
+    personal_api_key = os.getenv('POSTHOG_PERSONAL_API_KEY')
+    project_id = os.getenv('POSTHOG_PROJECT_ID')
+    host = os.getenv('PRIVATE_POSTHOG_DOMAIN', 'https://us.posthog.com')
+    if not personal_api_key or not project_id:
+        raise Exception('POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID must be set in environment')
+    url = f"{host}/api/projects/{project_id}/events/"
+    headers = {
+        "Authorization": f"Bearer {personal_api_key}",
+        "Content-Type": "application/json"
+    }
+    params = {
+        "limit": limit,
+        "format": "json"
+    }
+    if event_name:
+        params["event"] = event_name
+    if after:
+        params["after"] = after
+    if before:
+        params["before"] = before
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    return response.json()
+

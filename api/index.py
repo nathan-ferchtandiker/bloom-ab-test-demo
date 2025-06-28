@@ -75,6 +75,18 @@ def capture_app_selection_event():
     # Optionally, you could return some confirmation or next step
     return jsonify({"status": "success", "selected_id": selected_id, "app_selections": app_selections}), 200
 
+@app.route("/api/abtest/events", methods=["GET"])
+def get_abtest_events():
+    from posthog_client import fetch_events
+    event_name = "ab_test_origin_pipeline"
+    after = request.args.get("after")
+    before = request.args.get("before")
+    limit = int(request.args.get("limit", 100))
+    try:
+        events = fetch_events(event_name=event_name, after=after, before=before, limit=limit)
+        return jsonify(events)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5328)

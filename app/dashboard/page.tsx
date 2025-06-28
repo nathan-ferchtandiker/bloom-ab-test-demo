@@ -14,34 +14,165 @@ import {
   Cell
 } from 'recharts';
 
-// Mock data - in a real app, this would come from PostHog API
-const mockData = {
+// Types for the data structure
+interface ABTestEvent {
+  id: string;
+  distinct_id: string;
+  properties: {
+    list_of_apps?: string[];
+    list_of_pipelines?: string[];
+    selected_app?: string;
+    selected_pipeline?: string;
+    timestamp?: string;
+    user_id?: string;
+    total_choices?: number;
+    selection_index?: number;
+    experiment_name?: string;
+    variant?: string;
+    all_variants?: string[];
+    conversion?: boolean;
+  };
+  event: string;
+  timestamp: string;
+}
+
+interface DashboardData {
   pipelineA: {
-    total_shows: 150,
-    selections: 45,
-    conversion_rate: 30.0,
-    apps_generated: 75
-  },
+    total_shows: number;
+    selections: number;
+    conversion_rate: number;
+    apps_generated: number;
+  };
   pipelineB: {
-    total_shows: 150,
-    selections: 52,
-    conversion_rate: 34.7,
-    apps_generated: 75
-  },
-  recentSelections: [
-    { timestamp: '2024-01-15T10:30:00Z', pipeline: 'a', app_id: 'app_001', user_id: 'user_123' },
-    { timestamp: '2024-01-15T10:25:00Z', pipeline: 'b', app_id: 'app_002', user_id: 'user_456' },
-    { timestamp: '2024-01-15T10:20:00Z', pipeline: 'a', app_id: 'app_003', user_id: 'user_789' },
-    { timestamp: '2024-01-15T10:15:00Z', pipeline: 'b', app_id: 'app_004', user_id: 'user_123' },
-    { timestamp: '2024-01-15T10:10:00Z', pipeline: 'a', app_id: 'app_005', user_id: 'user_456' },
-  ]
-};
+    total_shows: number;
+    selections: number;
+    conversion_rate: number;
+    apps_generated: number;
+  };
+  recentSelections: Array<{
+    timestamp: string;
+    pipeline: string;
+    app_id: string;
+    user_id: string;
+  }>;
+}
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
 export default function Dashboard() {
-  const [data, setData] = useState(mockData);
+  const [data, setData] = useState<DashboardData>({
+    pipelineA: { total_shows: 0, selections: 0, conversion_rate: 0, apps_generated: 0 },
+    pipelineB: { total_shows: 0, selections: 0, conversion_rate: 0, apps_generated: 0 },
+    recentSelections: []
+  });
   const [timeRange, setTimeRange] = useState('24h');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const getDateRange = (range: string) => {
+    const now = new Date();
+    let after: Date;
+    
+    switch (range) {
+      case '1h':
+        after = new Date(now.getTime() - 60 * 60 * 1000);
+        break;
+      case '24h':
+        after = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        after = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        after = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        after = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    }
+    
+    return {
+      after: after.toISOString(),
+      before: now.toISOString()
+    };
+  };
+
+  const processEvents = (events: ABTestEvent[]): DashboardData => {
+    const pipelineA = { total_shows: 0, selections: 0, conversion_rate: 0, apps_generated: 0 };
+    const pipelineB = { total_shows: 0, selections: 0, conversion_rate: 0, apps_generated: 0 };
+    const recentSelections: Array<{timestamp: string, pipeline: string, app_id: string, user_id: string}> = [];
+
+    events.forEach(event => {
+      const props = event.properties;
+      const selectedPipeline = props.selected_pipeline;
+      
+      if (selectedPipeline === 'a') {
+        pipelineA.selections++;
+      } else if (selectedPipeline === 'b') {
+        pipelineB.selections++;
+      }
+
+      // Add to recent selections
+      if (props.selected_app && selectedPipeline) {
+        recentSelections.push({
+          timestamp: event.timestamp,
+          pipeline: selectedPipeline,
+          app_id: props.selected_app,
+          user_id: props.user_id || 'unknown'
+        });
+      }
+    });
+
+    // Calculate total shows (assuming each event represents a show)
+    const totalShows = events.length;
+    pipelineA.total_shows = Math.floor(totalShows / 2); // Rough estimate
+    pipelineB.total_shows = Math.floor(totalShows / 2);
+
+    // Calculate conversion rates
+    pipelineA.conversion_rate = pipelineA.total_shows > 0 ? (pipelineA.selections / pipelineA.total_shows) * 100 : 0;
+    pipelineB.conversion_rate = pipelineB.total_shows > 0 ? (pipelineB.selections / pipelineB.total_shows) * 100 : 0;
+
+    // Estimate apps generated
+    pipelineA.apps_generated = Math.floor(pipelineA.total_shows * 0.5);
+    pipelineB.apps_generated = Math.floor(pipelineB.total_shows * 0.5);
+
+    return {
+      pipelineA,
+      pipelineB,
+      recentSelections: recentSelections.slice(0, 10) // Keep only last 10
+    };
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const { after, before } = getDateRange(timeRange);
+      const response = await fetch(`/api/abtest/events?after=${after}&before=${before}&limit=1000`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      const processedData = processEvents(result.results || []);
+      setData(processedData);
+    } catch (err) {
+      console.error('Error fetching data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [timeRange]);
 
   // Chart data for conversion rates
   const conversionData = [
@@ -65,6 +196,34 @@ export default function Dashboard() {
     return new Date(timestamp).toLocaleTimeString();
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 text-xl mb-4">Error loading dashboard</div>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={fetchData}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -86,8 +245,12 @@ export default function Dashboard() {
                 <option value="7d">Last 7 Days</option>
                 <option value="30d">Last 30 Days</option>
               </select>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                Refresh Data
+              <button 
+                onClick={fetchData}
+                disabled={loading}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? 'Refreshing...' : 'Refresh Data'}
               </button>
             </div>
           </div>
@@ -162,7 +325,9 @@ export default function Dashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">Unique Users</p>
-                <p className="text-2xl font-semibold text-gray-900">247</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {new Set(data.recentSelections.map(s => s.user_id)).size}
+                </p>
               </div>
             </div>
           </div>
@@ -178,7 +343,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <Tooltip formatter={(value) => `${value}%`} />
+                <Tooltip formatter={(value: any) => `${value}%`} />
                 <Legend />
                 <Bar dataKey="conversion" fill="#3B82F6" />
               </BarChart>
@@ -195,7 +360,7 @@ export default function Dashboard() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
@@ -225,7 +390,7 @@ export default function Dashboard() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Conversion Rate:</span>
-                <span className="font-semibold text-green-600">{data.pipelineA.conversion_rate}%</span>
+                <span className="font-semibold text-green-600">{data.pipelineA.conversion_rate.toFixed(1)}%</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Apps Generated:</span>
@@ -247,7 +412,7 @@ export default function Dashboard() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Conversion Rate:</span>
-                <span className="font-semibold text-green-600">{data.pipelineB.conversion_rate}%</span>
+                <span className="font-semibold text-green-600">{data.pipelineB.conversion_rate.toFixed(1)}%</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Apps Generated:</span>
@@ -281,28 +446,36 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {data.recentSelections.map((selection, index) => (
-                  <tr key={index}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatTimestamp(selection.timestamp)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        selection.pipeline === 'a' 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : 'bg-green-100 text-green-800'
-                      }`}>
-                        Pipeline {selection.pipeline.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {selection.app_id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {selection.user_id}
+                {data.recentSelections.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                      No recent selections found
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  data.recentSelections.map((selection, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatTimestamp(selection.timestamp)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          selection.pipeline === 'a' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          Pipeline {selection.pipeline.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {selection.app_id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {selection.user_id}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
