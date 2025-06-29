@@ -10,6 +10,8 @@ import ab_test
 import settings
 import posthog_client
 from dotenv import load_dotenv
+import requests
+import os
 
 load_dotenv('.env.local')
 
@@ -82,9 +84,45 @@ def get_abtest_events():
     after = request.args.get("after")
     before = request.args.get("before")
     limit = int(request.args.get("limit", 100))
+    
     try:
+        print(f"Fetching events with params: event_name={event_name}, after={after}, before={before}, limit={limit}")
         events = fetch_events(event_name=event_name, after=after, before=before, limit=limit)
+        print(f"Successfully fetched {len(events.get('results', []))} events")
         return jsonify(events)
+    except Exception as e:
+        print(f"Error in get_abtest_events: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e), "details": "Check server logs for more information"}), 500
+
+@app.route("/api/project-info", methods=["GET"])
+def get_project_info():
+    """Helper endpoint to get project information"""
+    
+    project_api_key = os.getenv('PUBLIC_POSTHOG_KEY')
+    host = os.getenv('PUBLIC_POSTHOG_DOMAIN', 'https://us.i.posthog.com')
+    
+    if not project_api_key:
+        return jsonify({"error": "PUBLIC_POSTHOG_KEY not set"}), 400
+    
+    try:
+        # Try to get project info using the project API key
+        url = f"{host}/api/projects/"
+        headers = {
+            "Authorization": f"Bearer {project_api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.get(url, headers=headers)
+        print(f"Project info response status: {response.status_code}")
+        print(f"Project info response: {response.text}")
+        
+        if response.status_code == 200:
+            return jsonify(response.json())
+        else:
+            return jsonify({"error": f"Failed to get project info: {response.status_code}", "response": response.text}), 500
+            
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

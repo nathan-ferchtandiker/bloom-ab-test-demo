@@ -91,8 +91,16 @@ def fetch_events(event_name: str = None, after: str = None, before: str = None, 
     personal_api_key = os.getenv('POSTHOG_PERSONAL_API_KEY')
     project_id = os.getenv('POSTHOG_PROJECT_ID')
     host = os.getenv('PRIVATE_POSTHOG_DOMAIN', 'https://us.posthog.com')
-    if not personal_api_key or not project_id:
-        raise Exception('POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID must be set in environment')
+    
+    print(f"Environment check - personal_api_key: {'set' if personal_api_key else 'NOT SET'}")
+    print(f"Environment check - project_id: {'set' if project_id else 'NOT SET'}")
+    print(f"Environment check - host: {host}")
+    
+    if not personal_api_key:
+        raise Exception('POSTHOG_PERSONAL_API_KEY environment variable is not set')
+    if not project_id:
+        raise Exception('POSTHOG_PROJECT_ID environment variable is not set')
+        
     url = f"{host}/api/projects/{project_id}/events/"
     headers = {
         "Authorization": f"Bearer {personal_api_key}",
@@ -108,7 +116,16 @@ def fetch_events(event_name: str = None, after: str = None, before: str = None, 
         params["after"] = after
     if before:
         params["before"] = before
+    
+    print(f"Making request to: {url}")
+    print(f"With params: {params}")
+    
     response = requests.get(url, headers=headers, params=params)
-    response.raise_for_status()
+    print(f"Response status: {response.status_code}")
+    
+    if response.status_code != 200:
+        print(f"Response text: {response.text}")
+        response.raise_for_status()
+    
     return response.json()
 
