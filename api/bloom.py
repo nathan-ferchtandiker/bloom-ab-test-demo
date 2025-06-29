@@ -4,29 +4,41 @@ import hashlib
 import base64
 import database_client as db
 import settings
+import uuid
+import os
 
 def create_bloom_app_from_chat_message(message: str, db_client, pipeline: str = settings.OLD_PIPELINE):
     """
     Simulates creating a BloomApp from a chat message and pipeline.
-    Returns a BloomApp dict with a unique id, an image from the specified pipeline, and the origin_pipeline.
+    Picks a random image from the pipeline folder, assigns a UUID, and stores it in the in-memory database.
+    Returns a base64 data URL for the image (not a file path).
     """
-    # Get all bloom apps from storage
-    all_apps = db_client.read("bloom_apps")
-    
-    if not all_apps:
-        raise RuntimeError("No bloom apps found in database")
-    
-    # Filter apps by the specified pipeline
-    pipeline_apps = {}
-    for app_id, app_data in all_apps.items():
-        if app_data.get("origin_pipeline") == pipeline:
-            pipeline_apps[app_id] = app_data
-    
-    if pipeline_apps:
-        # Get a random app from this pipeline
-        app = random.choice(list(pipeline_apps.values()))
-        return [app]
-    else:
-        # Fallback: raise an error if no apps exist for this pipeline
-        raise RuntimeError(f"No apps found for pipeline: {pipeline}")
+    # Find the pipeline folder
+    resource_dir = os.path.join(os.path.dirname(__file__), "resroucre", pipeline)
+    images = [f for f in os.listdir(resource_dir) if f.endswith('.png')]
+    if not images:
+        raise RuntimeError(f"No images found for pipeline: {pipeline}")
+    chosen_image = random.choice(images)
+    image_path = os.path.join(resource_dir, chosen_image)
+
+    # Read and encode the image as base64 data URL
+    with open(image_path, 'rb') as f:
+        image_bytes = f.read()
+        encoded_image = base64.b64encode(image_bytes).decode('utf-8')
+        image_data_url = f"data:image/png;base64,{encoded_image}"
+
+    # Generate a UUID for the app/image ID
+    app_id = str(uuid.uuid4())
+
+    # Store in the in-memory database
+    app = {
+        'id': app_id,
+        'image': image_data_url,  # Return the data URL, not the file path
+        'origin_pipeline': pipeline,
+        'message': message
+    }
+    db.add_app(app)
+
+    # Return the new app in a list (to match previous return type)
+    return [app]
 

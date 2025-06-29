@@ -89,7 +89,7 @@ export default function Home() {
           <span>Chat</span>
           
         </header>
-        <Chat onSendMessage={handleSendMessage} />
+        <Chat onSendMessageAction={handleSendMessage} />
       </section>
 
       <section className="flex-1 flex items-center justify-center bg-gray-50 relative">

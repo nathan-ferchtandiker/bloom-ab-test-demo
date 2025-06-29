@@ -2,10 +2,10 @@
 import React, { useState } from 'react';
 
 interface ChatProps {
-  onSendMessage: (message: string) => void;
+  onSendMessageAction: (message: string) => void;
 }
 
-export default function Chat({ onSendMessage }: ChatProps) {
+export default function Chat({ onSendMessageAction }: ChatProps) {
   const [messages, setMessages] = useState<string[]>([]);
   const [input, setInput] = useState('');
 
@@ -13,7 +13,7 @@ export default function Chat({ onSendMessage }: ChatProps) {
     e.preventDefault();
     if (input.trim()) {
       setMessages([...messages, input]);
-      onSendMessage(input);
+      onSendMessageAction(input);
       setInput('');
     }
   };

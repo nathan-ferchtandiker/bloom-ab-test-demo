@@ -4,6 +4,8 @@ import hashlib
 
 storage = {}  # simulating a real database in memory with kv
 
+# Simulated in-memory database for bloom apps
+apps_db = {}
 
 from typing import Any, Optional
 
@@ -112,5 +114,11 @@ def init():
     # Store pipeline_ids in storage
     storage["pipeline_ids"] = pipeline_ids
     print(f"Found pipelines: {pipeline_ids}")
+
+def add_app(app):
+    apps_db[app['id']] = app
+
+def read_apps():
+    return apps_db
 
 init()
