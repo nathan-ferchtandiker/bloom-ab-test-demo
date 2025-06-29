@@ -200,12 +200,62 @@ Get PostHog project information.
 
 ### A/B Testing Logic
 
-The backend implements sophisticated A/B testing:
+The backend implements A/B testing with the following approach:
 
-1. **Pipeline Selection**: Randomly assigns users to Pipeline A or B
-2. **Event Tracking**: Captures all user interactions with PostHog
-3. **Statistical Analysis**: Provides chi-square testing for significance
-4. **Real-time Analytics**: Dashboard shows live performance metrics
+1. **A/B Test Decision**: Each request has a 50% chance of triggering an A/B test (controlled by `is_ab_test()` function)
+2. **Dual Pipeline Generation**: When A/B testing is enabled, the system generates apps from BOTH Pipeline A and Pipeline B simultaneously
+3. **Single Pipeline Fallback**: When A/B testing is disabled, only Pipeline A (default) is used to generate a single app
+4. **Randomization**: The order of apps is shuffled to prevent position bias in the UI
+5. **Event Tracking**: All user interactions are captured with PostHog for analytics
+6. **Statistical Analysis**: The dashboard provides chi-square testing to determine significance between pipeline performance
+
+### Database Simulation
+
+The backend uses an in-memory database simulation for demonstration purposes:
+
+#### Storage Structure
+```python
+storage = {
+    "bloom_apps": {
+        "image_hash": {
+            "id": str,           # SHA256 hash of the image
+            "image": str,        # Base64 encoded image data URL
+            "origin_pipeline": str  # Pipeline name (a/b)
+        }
+    },
+    "pipeline_ids": [str]        # List of unique pipeline names
+}
+```
+
+#### Key Features
+- **In-Memory Storage**: Uses Python dictionaries to simulate a real database
+- **Image Preloading**: Automatically loads all PNG images from `api/resroucre/` directory on startup
+- **Hash-Based IDs**: Each app gets a unique SHA256 hash based on its image content
+- **Pipeline Tracking**: Associates each app with its source pipeline (A or B)
+- **Base64 Encoding**: Images are stored as data URLs for easy frontend consumption
+
+#### Database Operations
+- **`create(key, value)`**: Store a new key-value pair
+- **`read(query)`**: Supports single key, multiple keys, or dict-based filtering
+- **`update(key, value)`**: Update existing entries
+- **`delete(key)`**: Remove entries
+- **`add_app(app)`**: Add a new Bloom app to the apps database
+- **`read_apps()`**: Retrieve all stored apps
+
+#### Initialization Process
+1. **Scan Resource Directory**: Reads all PNG files from `api/resroucre/a/` and `api/resroucre/b/`
+2. **Generate Hashes**: Creates SHA256 hashes for each image as unique identifiers
+3. **Encode Images**: Converts images to base64 data URLs
+4. **Store Metadata**: Saves app information with pipeline association
+5. **Pipeline Discovery**: Automatically detects available pipelines
+
+#### Usage in A/B Testing
+- **App Generation**: When creating new apps, they're stored in the in-memory database
+- **Pipeline Assignment**: Each app is tagged with its source pipeline for analytics
+- **Selection Tracking**: User selections are tracked against stored app IDs
+- **Dashboard Data**: The analytics dashboard reads from this simulated database
+
+**Note**: This is a demonstration implementation. In production, you would replace this with a real database like PostgreSQL, MongoDB, or a cloud database service.
 
 ### Database Integration
 
@@ -232,34 +282,3 @@ The `database_client.py` provides a flexible interface for:
 3. **Access the Application**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:5328
-
-### Development Workflow
-
-1. **Frontend Changes**: Edit files in `app/` directory
-2. **Backend Changes**: Edit files in `api/` directory
-3. **API Testing**: Use the dashboard or Postman to test endpoints
-4. **Analytics**: Monitor PostHog dashboard for event tracking
-
-## Production Deployment
-
-### Frontend Deployment
-- Build the Next.js app: `npm run build`
-- Deploy to Vercel, Netlify, or your preferred hosting
-- Configure environment variables in your hosting platform
-
-### Backend Deployment
-- Deploy Flask app to Heroku, Railway, or your preferred hosting
-- Set environment variables in your hosting platform
-- Ensure CORS is properly configured for production domains
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test both frontend and backend
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
