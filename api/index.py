@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from datatypes import BloomApp 
 import database_client as db
 import bloom
 import ab_test
@@ -8,6 +7,7 @@ import posthog_client
 from dotenv import load_dotenv
 import requests
 import os
+from datatypes import BloomApp
 
 load_dotenv('.env.local')
 
