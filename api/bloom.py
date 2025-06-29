@@ -2,8 +2,8 @@ from typing import Dict
 import random
 import hashlib
 import base64
-import database_client as db
-import settings
+from . import database_client as db
+from . import settings
 import uuid
 import os
 
