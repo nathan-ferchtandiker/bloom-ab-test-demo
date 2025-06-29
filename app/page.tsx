@@ -85,11 +85,22 @@ export default function Home() {
   return (
     <main className="flex min-h-screen bg-gray-50">     
       <section className="w-full max-w-md flex flex-col border-r border-gray-200 bg-white h-screen">
-        <header className="px-6 py-4 border-b border-gray-200 text-2xl font-semibold flex items-center">Chat</header>
+        <header className="px-6 py-4 border-b border-gray-200 text-2xl font-semibold flex items-center justify-between">
+          <span>Chat</span>
+          
+        </header>
         <Chat onSendMessage={handleSendMessage} />
       </section>
 
-      <section className="flex-1 flex items-center justify-center bg-gray-50">
+      <section className="flex-1 flex items-center justify-center bg-gray-50 relative">
+        <a 
+          href="/dashboard" 
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-medium transition-colors"
+        >
+          A/B Test Dashboard
+        </a>
         <PhonePreviewContainer apps={apps} a_b_test={true} onSelectApp={(selectedId) => handleSelectApp(apps, selectedId)} />
       </section>
     </main>

@@ -11,7 +11,7 @@ interface AbTestPhonePreviewProps {
 const AbTestPhonePreview: React.FC<AbTestPhonePreviewProps> = ({ app, variantLabel, onSelect, disabled }) => {
   return (
     <div className="flex flex-col items-center">
-      <div className="mb-2 text-sm font-medium">{variantLabel}</div>
+      <div className="mb-2 text-sm font-medium text-gray-900">{variantLabel}</div>
       <button
         onClick={onSelect}
         disabled={disabled}

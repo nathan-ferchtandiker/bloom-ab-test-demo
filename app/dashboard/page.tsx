@@ -279,7 +279,7 @@ export default function Dashboard() {
               <select 
                 value={timeRange} 
                 onChange={(e) => setTimeRange(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 bg-white"
+                className="border border-gray-300 rounded-md px-3 py-2 bg-white text-gray-900"
               >
                 <option value="1h">Last Hour</option>
                 <option value="24h">Last 24 Hours</option>
@@ -344,23 +344,13 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Selections by Pipeline</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
+              <BarChart data={selectionData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis allowDecimals={false} />
                 <Tooltip />
-              </PieChart>
+                <Bar dataKey="selections" fill="#3B82F6" />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
