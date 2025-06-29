@@ -7,7 +7,6 @@ import posthog_client
 from dotenv import load_dotenv
 import requests
 import os
-from datatypes import BloomApp
 
 load_dotenv('.env.local')
 
