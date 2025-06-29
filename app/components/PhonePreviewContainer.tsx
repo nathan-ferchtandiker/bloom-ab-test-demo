@@ -47,7 +47,7 @@ export default function PhonePreviewContainer({ apps, a_b_test = true, onSelectA
               <AbTestPhonePreview
                 key={app.id}
                 app={app}
-                variantLabel={`Variant ${String.fromCharCode(65 + idx)}`}
+                variantLabel={`Variant ${app.origin_pipeline?.toUpperCase()}` || `Variant ${String.fromCharCode(65 + idx)}`}
                 onSelect={() => handleAppSelection(app.id)}
                 disabled={selected !== null}
               />

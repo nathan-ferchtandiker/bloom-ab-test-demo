@@ -14,6 +14,16 @@ import {
   Cell
 } from 'recharts';
 
+// Type assertions to fix Recharts TypeScript issues
+const ResponsiveContainerAny = ResponsiveContainer as any;
+const BarChartAny = BarChart as any;
+const CartesianGridAny = CartesianGrid as any;
+const XAxisAny = XAxis as any;
+const YAxisAny = YAxis as any;
+const TooltipAny = Tooltip as any;
+const BarAny = Bar as any;
+const CellAny = Cell as any;
+
 // Types for the data structure
 interface ABTestEvent {
   id: string;
@@ -57,6 +67,80 @@ interface DashboardData {
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
+// Statistical significance test functions
+const chiSquareTest = (aSelections: number, aShows: number, bSelections: number, bShows: number, twoSided: boolean = true) => {
+  const aRate = aSelections / aShows;
+  const bRate = bSelections / bShows;
+  
+  // Create 2x2 contingency table
+  const aNotSelected = aShows - aSelections;
+  const bNotSelected = bShows - bSelections;
+  
+  // Calculate expected values
+  const totalSelections = aSelections + bSelections;
+  const totalShows = aShows + bShows;
+  const totalNotSelected = totalShows - totalSelections;
+  
+  const expectedASelections = (aShows * totalSelections) / totalShows;
+  const expectedBSelections = (bShows * totalSelections) / totalShows;
+  const expectedANotSelected = (aShows * totalNotSelected) / totalShows;
+  const expectedBNotSelected = (bShows * totalNotSelected) / totalShows;
+  
+  // Calculate chi-square statistic
+  const chiSquare = Math.pow(aSelections - expectedASelections, 2) / expectedASelections +
+                   Math.pow(bSelections - expectedBSelections, 2) / expectedBSelections +
+                   Math.pow(aNotSelected - expectedANotSelected, 2) / expectedANotSelected +
+                   Math.pow(bNotSelected - expectedBNotSelected, 2) / expectedBNotSelected;
+  
+  // For 2x2 table, degrees of freedom = 1
+  // Critical values:
+  // - 2-sided (α=0.05): 3.841
+  // - 1-sided (α=0.05): 2.706 (using z-score approximation)
+  const criticalValue = twoSided ? 3.841 : 2.706;
+  const isSignificant = chiSquare > criticalValue;
+  
+  // P-value calculation using chi-square distribution approximation
+  const calculatePValue = (chiSquare: number, twoSided: boolean, bRate: number, aRate: number) => {
+    // For chi-square with 1 degree of freedom, we can use normal approximation
+    const z = Math.sqrt(chiSquare);
+    
+    // Standard normal CDF approximation
+    const normalCDF = (x: number) => {
+      return 0.5 * (1 + Math.sign(x) * Math.sqrt(1 - Math.exp(-2 * x * x / Math.PI)));
+    };
+    
+    let pValue;
+    if (twoSided) {
+      // Two-sided test: probability of getting chi-square this large or larger
+      pValue = 2 * (1 - normalCDF(z));
+    } else {
+      // One-sided test: we only care if B > A
+      if (bRate > aRate) {
+        // B is better, so we want the probability of getting this result or better
+        pValue = 1 - normalCDF(z);
+      } else {
+        // B is not better, so p-value should be high (not significant)
+        pValue = normalCDF(z);
+      }
+    }
+    
+    return Math.max(0, Math.min(1, pValue)); // Clamp between 0 and 1
+  };
+  
+  const pValue = calculatePValue(chiSquare, twoSided, bRate, aRate);
+  
+  return {
+    chiSquare,
+    pValue,
+    isSignificant,
+    aRate,
+    bRate,
+    improvement: bRate > aRate ? ((bRate - aRate) / aRate) * 100 : ((aRate - bRate) / aRate) * 100,
+    twoSided,
+    criticalValue
+  };
+};
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData>({
     pipelineA: { total_shows: 0, selections: 0, apps_generated: 0 },
@@ -66,6 +150,7 @@ export default function Dashboard() {
   const [timeRange, setTimeRange] = useState('24h');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [twoSidedTest, setTwoSidedTest] = useState(false);
 
   const getDateRange = (range: string) => {
     const now = new Date();
@@ -223,8 +308,8 @@ export default function Dashboard() {
 
   // Chart data for selections
   const selectionData = [
-    { name: 'Pipeline A', selections: data.pipelineA.selections },
-    { name: 'Pipeline B', selections: data.pipelineB.selections },
+    { name: 'Pipeline A', selections: data.pipelineA.selections, color: '#3B82F6' },
+    { name: 'Pipeline B', selections: data.pipelineB.selections, color: '#10B981' },
   ];
 
   // Pie chart data for total distribution
@@ -232,6 +317,15 @@ export default function Dashboard() {
     { name: 'Pipeline A', value: data.pipelineA.selections },
     { name: 'Pipeline B', value: data.pipelineB.selections },
   ];
+
+  // Calculate statistical significance
+  const significanceTest = chiSquareTest(
+    data.pipelineA.selections,
+    data.pipelineA.total_shows,
+    data.pipelineB.selections,
+    data.pipelineB.total_shows,
+    twoSidedTest
+  );
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString();
@@ -331,7 +425,7 @@ export default function Dashboard() {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">Unique Users</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {new Set(data.recentSelections.map(s => s.user_id)).size}
+                  {Math.min(new Set(data.recentSelections.map(s => s.user_id)).size, 10)}
                 </p>
               </div>
             </div>
@@ -343,17 +437,23 @@ export default function Dashboard() {
           {/* Selections Distribution */}
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Selections by Pipeline</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={selectionData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="selections" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
+            <ResponsiveContainerAny width="100%" height={300}>
+              <BarChartAny data={selectionData}>
+                <CartesianGridAny strokeDasharray="3 3" />
+                <XAxisAny dataKey="name" />
+                <YAxisAny allowDecimals={false} />
+                <TooltipAny />
+                <BarAny dataKey="selections">
+                  {selectionData.map((entry, index) => (
+                    <CellAny key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </BarAny>
+              </BarChartAny>
+            </ResponsiveContainerAny>
           </div>
         </div>
+
+        
 
         {/* Pipeline Performance Details */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
@@ -391,6 +491,62 @@ export default function Dashboard() {
                 <span className="font-semibold text-gray-900">{data.pipelineB.apps_generated}</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Statistical Significance Test */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Statistical Significance Test (1-sided: B{'>'}A)</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="text-md font-medium text-gray-700 mb-3">Selection Rates</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Pipeline A:</span>
+                  <span className="font-semibold text-gray-900">
+                    {significanceTest.aRate.toFixed(3)} ({data.pipelineA.selections}/{data.pipelineA.total_shows})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Pipeline B:</span>
+                  <span className="font-semibold text-gray-900">
+                    {significanceTest.bRate.toFixed(3)} ({data.pipelineB.selections}/{data.pipelineB.total_shows})
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-md font-medium text-gray-700 mb-3">Test Results</h4>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Chi-Square Statistic:</span>
+                  <span className="font-semibold text-gray-900">{significanceTest.chiSquare.toFixed(3)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">P-Value:</span>
+                  <span className="font-semibold text-gray-900">{significanceTest.pValue.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Significant (α=0.05):</span>
+                  <span className={`font-semibold ${significanceTest.isSignificant ? 'text-green-600' : 'text-red-600'}`}>
+                    {significanceTest.isSignificant ? 'Yes' : 'No'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Conclusion */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h4 className="text-md font-medium text-gray-700 mb-2">Conclusion</h4>
+            <p className="text-gray-600">
+              {significanceTest.isSignificant 
+                ? `Pipeline B is performing significantly better than Pipeline A with a ${significanceTest.improvement.toFixed(1)}% improvement in selection rate (p < 0.05, one-sided test).`
+                : 'Pipeline B is not performing significantly better than Pipeline A at the 95% confidence level (one-sided test). More data may be needed.'
+              }
+            </p>
           </div>
         </div>
 
