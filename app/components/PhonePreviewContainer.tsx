@@ -26,7 +26,7 @@ export default function PhonePreviewContainer({ apps, a_b_test = true, onSelectA
         {apps.map(app => (
           <div key={app.id} className="flex flex-col items-center">
             <PhonePreview image={app.image} />
-            <div className="mt-2 text-xs text-gray-400">Pipeline: {app.origin_pipeline ?? 'unknown'}</div>
+            <div className="mt-2 text-xs text-gray-400"></div>
           </div>
         ))}
       </div>

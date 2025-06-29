@@ -25,7 +25,7 @@ const AbTestPhonePreview: React.FC<AbTestPhonePreviewProps> = ({ app, variantLab
               'Create an app by typing'
             )}
           </div>
-          <div className="mt-2 text-xs text-gray-400">Pipeline: {app.origin_pipeline ?? 'unknown'}</div>
+          <div className="mt-2 text-xs text-gray-400"></div>
         </div>
       </button>
     </div>

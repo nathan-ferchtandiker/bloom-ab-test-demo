@@ -19,8 +19,8 @@ interface ABTestEvent {
   id: string;
   distinct_id: string;
   properties: {
-    list_of_apps?: string[];
-    list_of_pipelines?: string[];
+    all_apps?: string[];
+    all_pipelines?: string[];
     selected_app?: string;
     selected_pipeline?: string;
     timestamp?: string;
@@ -40,13 +40,11 @@ interface DashboardData {
   pipelineA: {
     total_shows: number;
     selections: number;
-    conversion_rate: number;
     apps_generated: number;
   };
   pipelineB: {
     total_shows: number;
     selections: number;
-    conversion_rate: number;
     apps_generated: number;
   };
   recentSelections: Array<{
@@ -61,8 +59,8 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData>({
-    pipelineA: { total_shows: 0, selections: 0, conversion_rate: 0, apps_generated: 0 },
-    pipelineB: { total_shows: 0, selections: 0, conversion_rate: 0, apps_generated: 0 },
+    pipelineA: { total_shows: 0, selections: 0, apps_generated: 0 },
+    pipelineB: { total_shows: 0, selections: 0, apps_generated: 0 },
     recentSelections: []
   });
   const [timeRange, setTimeRange] = useState('24h');
@@ -97,14 +95,59 @@ export default function Dashboard() {
   };
 
   const processEvents = (events: ABTestEvent[]): DashboardData => {
-    const pipelineA = { total_shows: 0, selections: 0, conversion_rate: 0, apps_generated: 0 };
-    const pipelineB = { total_shows: 0, selections: 0, conversion_rate: 0, apps_generated: 0 };
+    const pipelineA = { total_shows: 0, selections: 0, apps_generated: 0 };
+    const pipelineB = { total_shows: 0, selections: 0, apps_generated: 0 };
     const recentSelections: Array<{timestamp: string, pipeline: string, app_id: string, user_id: string}> = [];
 
-    events.forEach(event => {
+    // Track unique app IDs per pipeline to calculate apps generated
+    const pipelineAAppIds = new Set<string>();
+    const pipelineBAppIds = new Set<string>();
+
+    console.log('Processing events:', events.length);
+    
+    events.forEach((event, eventIndex) => {
       const props = event.properties;
       const selectedPipeline = props.selected_pipeline;
+      const allApps = props.all_apps || [];
+      const allPipelines = props.all_pipelines || [];
       
+      console.log(`Event ${eventIndex}:`, {
+        selectedPipeline,
+        allApps,
+        allPipelines,
+        hasListOfApps: !!props.all_apps,
+        hasListOfPipelines: !!props.all_pipelines,
+        allProperties: props
+      });
+      
+      // Count total shows - each event represents a "show" where both pipelines were displayed
+      // We count this event as a show for both pipelines since both were presented to the user
+      pipelineA.total_shows++;
+      pipelineB.total_shows++;
+      
+      // Count unique app IDs per pipeline for apps generated
+      if (allApps.length > 0 && allPipelines.length > 0) {
+        // Match apps with their pipelines
+        allApps.forEach((appId, index) => {
+          const pipeline = allPipelines[index];
+          if (pipeline === 'a') {
+            pipelineAAppIds.add(appId);
+          } else if (pipeline === 'b') {
+            pipelineBAppIds.add(appId);
+          }
+        });
+      } else {
+        // Fallback: if we don't have the arrays, use the selected app and pipeline
+        if (props.selected_app && selectedPipeline) {
+          if (selectedPipeline === 'a') {
+            pipelineAAppIds.add(props.selected_app);
+          } else if (selectedPipeline === 'b') {
+            pipelineBAppIds.add(props.selected_app);
+          }
+        }
+      }
+      
+      // Count selections
       if (selectedPipeline === 'a') {
         pipelineA.selections++;
       } else if (selectedPipeline === 'b') {
@@ -122,18 +165,22 @@ export default function Dashboard() {
       }
     });
 
-    // Calculate total shows (assuming each event represents a show)
-    const totalShows = events.length;
-    pipelineA.total_shows = Math.floor(totalShows / 2); // Rough estimate
-    pipelineB.total_shows = Math.floor(totalShows / 2);
+    console.log('Final counts:', {
+      pipelineA: { 
+        shows: pipelineA.total_shows, 
+        selections: pipelineA.selections,
+        uniqueAppIds: Array.from(pipelineAAppIds)
+      },
+      pipelineB: { 
+        shows: pipelineB.total_shows, 
+        selections: pipelineB.selections,
+        uniqueAppIds: Array.from(pipelineBAppIds)
+      }
+    });
 
-    // Calculate conversion rates
-    pipelineA.conversion_rate = pipelineA.total_shows > 0 ? (pipelineA.selections / pipelineA.total_shows) * 100 : 0;
-    pipelineB.conversion_rate = pipelineB.total_shows > 0 ? (pipelineB.selections / pipelineB.total_shows) * 100 : 0;
-
-    // Estimate apps generated
-    pipelineA.apps_generated = Math.floor(pipelineA.total_shows * 0.5);
-    pipelineB.apps_generated = Math.floor(pipelineB.total_shows * 0.5);
+    // Apps generated is based on unique app IDs
+    pipelineA.apps_generated = pipelineAAppIds.size;
+    pipelineB.apps_generated = pipelineBAppIds.size;
 
     return {
       pipelineA,
@@ -173,12 +220,6 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
   }, [timeRange]);
-
-  // Chart data for conversion rates
-  const conversionData = [
-    { name: 'Pipeline A', conversion: data.pipelineA.conversion_rate },
-    { name: 'Pipeline B', conversion: data.pipelineB.conversion_rate },
-  ];
 
   // Chart data for selections
   const selectionData = [
@@ -281,42 +322,6 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-green-100 rounded-md flex items-center justify-center">
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Avg Conversion Rate</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {((data.pipelineA.conversion_rate + data.pipelineB.conversion_rate) / 2).toFixed(1)}%
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-yellow-100 rounded-md flex items-center justify-center">
-                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Shows</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {data.pipelineA.total_shows + data.pipelineB.total_shows}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
                 <div className="w-8 h-8 bg-purple-100 rounded-md flex items-center justify-center">
                   <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -334,25 +339,10 @@ export default function Dashboard() {
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Conversion Rate Comparison */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Conversion Rate by Pipeline</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={conversionData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip formatter={(value: any) => `${value}%`} />
-                <Legend />
-                <Bar dataKey="conversion" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
+        <div className="grid grid-cols-1 gap-8 mb-8">
           {/* Selections Distribution */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Selections Distribution</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Selections by Pipeline</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -382,19 +372,15 @@ export default function Dashboard() {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Shows:</span>
-                <span className="font-semibold">{data.pipelineA.total_shows}</span>
+                <span className="font-semibold text-gray-900">{data.pipelineA.total_shows}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Selections:</span>
-                <span className="font-semibold">{data.pipelineA.selections}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Conversion Rate:</span>
-                <span className="font-semibold text-green-600">{data.pipelineA.conversion_rate.toFixed(1)}%</span>
+                <span className="font-semibold text-gray-900">{data.pipelineA.selections}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Apps Generated:</span>
-                <span className="font-semibold">{data.pipelineA.apps_generated}</span>
+                <span className="font-semibold text-gray-900">{data.pipelineA.apps_generated}</span>
               </div>
             </div>
           </div>
@@ -404,19 +390,15 @@ export default function Dashboard() {
             <div className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Shows:</span>
-                <span className="font-semibold">{data.pipelineB.total_shows}</span>
+                <span className="font-semibold text-gray-900">{data.pipelineB.total_shows}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Selections:</span>
-                <span className="font-semibold">{data.pipelineB.selections}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Conversion Rate:</span>
-                <span className="font-semibold text-green-600">{data.pipelineB.conversion_rate.toFixed(1)}%</span>
+                <span className="font-semibold text-gray-900">{data.pipelineB.selections}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Apps Generated:</span>
-                <span className="font-semibold">{data.pipelineB.apps_generated}</span>
+                <span className="font-semibold text-gray-900">{data.pipelineB.apps_generated}</span>
               </div>
             </div>
           </div>
