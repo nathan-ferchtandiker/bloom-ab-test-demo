@@ -74,7 +74,6 @@ def capture_app_selection_event():
 
 @app.route("/api/abtest/events", methods=["GET"])
 def get_abtest_events():
-    from posthog_client import fetch_events
     event_name = "ab_test_origin_pipeline"
     after = request.args.get("after")
     before = request.args.get("before")
@@ -82,7 +81,7 @@ def get_abtest_events():
     
     try:
         print(f"Fetching events with params: event_name={event_name}, after={after}, before={before}, limit={limit}")
-        events = fetch_events(event_name=event_name, after=after, before=before, limit=limit)
+        events = posthog_client.fetch_events(event_name=event_name, after=after, before=before, limit=limit)
         print(f"Successfully fetched {len(events.get('results', []))} events")
         return jsonify(events)
     except Exception as e:

@@ -1,4 +1,3 @@
-import posthog
 import os
 import json
 import requests
