@@ -1,9 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from backend import database_client as db
-from backend import bloom
-from backend import ab_test
-from backend import posthog_client
+import database_client as db
+import bloom
+import ab_test
+import posthog_client
 from dotenv import load_dotenv
 import requests
 import os
