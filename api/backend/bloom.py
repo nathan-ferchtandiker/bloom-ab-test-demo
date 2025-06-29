@@ -2,8 +2,8 @@ from typing import Dict
 import random
 import hashlib
 import base64
-import database_client as db
-import settings
+from backend import database_client as db
+from backend import settings
 import uuid
 import os
 
@@ -13,8 +13,8 @@ def create_bloom_app_from_chat_message(message: str, db_client, pipeline: str = 
     Picks a random image from the pipeline folder, assigns a UUID, and stores it in the in-memory database.
     Returns a base64 data URL for the image (not a file path).
     """
-    # Find the pipeline folder
-    resource_dir = os.path.join(os.path.dirname(__file__), "resroucre", pipeline)
+    # Find the pipeline folder - now need to go up one level since we're in backend/
+    resource_dir = os.path.join(os.path.dirname(__file__), "..", "resroucre", pipeline)
     images = [f for f in os.listdir(resource_dir) if f.endswith('.png')]
     if not images:
         raise RuntimeError(f"No images found for pipeline: {pipeline}")

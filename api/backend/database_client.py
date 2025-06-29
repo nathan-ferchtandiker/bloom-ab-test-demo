@@ -76,7 +76,7 @@ def init():
         "pipeline_ids": [str]        # List of unique pipeline names
     }
     """
-    resource_dir = os.path.join(os.path.dirname(__file__), "resroucre")
+    resource_dir = os.path.join("api", "resroucre")
     if not os.path.exists(resource_dir):
         raise RuntimeError(f"Resource directory does not exist: {resource_dir}")
 

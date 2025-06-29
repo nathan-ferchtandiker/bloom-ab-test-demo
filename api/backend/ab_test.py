@@ -1,7 +1,7 @@
 import random
-import database_client as db
-import bloom
-import settings
+from backend import database_client as db
+from backend import bloom
+from backend import settings
 
 
 
