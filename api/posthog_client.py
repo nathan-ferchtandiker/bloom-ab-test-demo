@@ -64,6 +64,14 @@ class PrivatePostHogClient:
 posthog_private_client = PrivatePostHogClient()
 
 
+def capture_private_event(event: str, distinct_id: str, properties: Optional[Dict[str, Any]] = None, timestamp: Optional[str] = None):
+    """
+    Capture a PostHog event using the private API.
+    This is a convenience function that uses the global posthog_private_client instance.
+    """
+    posthog_private_client.capture(event, distinct_id, properties, timestamp)
+
+
 def fetch_events(event_name: str = None, after: str = None, before: str = None, limit: int = 100):
     """
     Fetch events from PostHog using the private API.

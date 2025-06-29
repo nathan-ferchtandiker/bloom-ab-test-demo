@@ -1,13 +1,9 @@
 from flask import Flask, request, jsonify
-import base64
-import uuid
-import random
 from flask_cors import CORS
 from datatypes import BloomApp 
 import database_client as db
 import bloom
 import ab_test
-import settings
 import posthog_client
 from dotenv import load_dotenv
 import requests
