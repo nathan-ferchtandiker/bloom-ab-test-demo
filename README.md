@@ -37,7 +37,6 @@ POSTHOG_API_KEY=your_posthog_personal_api_key
 ### Key Features
 - **Interactive Dashboard**: Real-time A/B test analytics with statistical significance testing
 - **Phone Preview**: Visual app preview with A/B test variants
-- **Responsive Design**: Mobile-first approach with Tailwind CSS
 - **Type Safety**: Full TypeScript implementation
 
 ### Project Structure
