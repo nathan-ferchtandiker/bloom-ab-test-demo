@@ -4,6 +4,8 @@
 
 This demo showcases how to evaluate code generation pipelines for Bloom using PostHog analytics. Two pipelines (A and B) generate mobile apps, which are simulated by images of mobile app screens. Users are presented with these app variants and asked to select which app they think is better. All user selections and interactions are tracked with PostHog. Additionally, the application features a dashboard that pulls data from PostHog and displays analytics—including statistical significance testing—to determine whether pipeline B (the new pipeline) performs better than pipeline A (the old pipeline).
 
+The demo is hosted at [https://bloom-ab-test-demo.vercel.app/](https://bloom-ab-test-demo.vercel.app/)
+
 ## Project Overview
 
 This application allows users to:
