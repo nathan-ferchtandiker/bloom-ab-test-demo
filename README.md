@@ -1,6 +1,6 @@
 # Bloom A/B Test Demo
 
-A full-stack application demonstrating A/B testing for Bloom app generation pipelines. The project consists of a Next.js frontend with a Flask backend API, featuring real-time analytics dashboard and PostHog integration for event tracking.
+A full-stack application demonstrating A/B testing for Bloom app generation pipelines. The project consists of a Next.js frontend with a Node.js/TypeScript backend API, featuring real-time analytics dashboard and PostHog integration for event tracking.
 
 ## Project Overview
 
@@ -14,7 +14,6 @@ This application allows users to:
 
 ### Prerequisites
 - Node.js 18+ 
-- Python 3.8+
 - PostHog account and API keys
 
 ### Environment Setup
@@ -92,14 +91,15 @@ The frontend communicates with the Flask backend through Next.js API rewrites:
 - Development: `http://127.0.0.1:5328/api/*`
 - Production: `/api/*`
 
-## Backend (Flask)
+## Backend (Node.js/TypeScript)
 
 ### Technology Stack
-- **Framework**: Flask 3.0.3
-- **Language**: Python 3.8+
-- **CORS**: flask-cors
-- **Analytics**: PostHog Python SDK
-- **Environment**: python-dotenv
+- **Framework**: Express.js 4.18.2
+- **Language**: TypeScript 5.0.4
+- **CORS**: cors middleware
+- **Analytics**: PostHog HTTP API integration
+- **Environment**: dotenv
+- **Build Tool**: tsx for development, tsc for production
 
 ### Key Features
 - **A/B Test Logic**: Intelligent pipeline selection and tracking
@@ -110,37 +110,50 @@ The frontend communicates with the Flask backend through Next.js API rewrites:
 ### Project Structure
 ```
 api/
-├── index.py              # Main Flask application
-├── ab_test.py            # A/B testing logic
-├── bloom.py              # Bloom app generation
-├── database_client.py    # Database operations
-├── datatypes.py          # Data models
-├── posthog_client.py     # PostHog integration
-├── settings.py           # Configuration
-└── resource/             # Static resources
+├── index.ts              # Main Express application
+├── ab-test.ts            # A/B testing logic
+├── bloom.ts              # Bloom app generation
+├── database-client.ts    # Database operations
+├── datatypes.ts          # Data models
+├── posthog-client.ts     # PostHog integration
+├── settings.ts           # Configuration
+├── tsconfig.json         # TypeScript configuration
+└── resroucre/            # Static resources
     ├── a/               # Pipeline A resources
     └── b/               # Pipeline B resources
 ```
 
 ### Setup Instructions
 
-1. **Install Python Dependencies**
+1. **Install Dependencies**
    ```bash
-   pip install -r requirements.txt
+   npm install
    ```
 
-2. **Start Flask Server**
+2. **Start Development Server**
    ```bash
-   cd api
-   python index.py
+   npm run api-dev
    ```
 
-3. **Environment Variables**
+3. **Build for Production**
+   ```bash
+   npm run api-build
+   npm run api-start
+   ```
+
+4. **Run Both Frontend and Backend**
+   ```bash
+   npm run dev:full
+   ```
+
+5. **Environment Variables**
    Ensure your `.env.local` file contains:
    ```env
    PUBLIC_POSTHOG_KEY=your_posthog_project_api_key
    PUBLIC_POSTHOG_DOMAIN=https://us.i.posthog.com
-   POSTHOG_API_KEY=your_posthog_personal_api_key
+   PRIVATE_POSTHOG_KEY=your_posthog_private_api_key
+   POSTHOG_PERSONAL_API_KEY=your_posthog_personal_api_key
+   POSTHOG_PROJECT_ID=your_posthog_project_id
    ```
 
 ### API Endpoints
@@ -198,6 +211,36 @@ Retrieve A/B test events for dashboard analytics.
 Get PostHog project information.
 
 ### A/B Testing Logic
+
+## Deployment
+
+### Vercel Deployment
+
+1. **Deploy to Vercel**
+   ```bash
+   # Push your code to GitHub, then connect to Vercel
+   # Vercel will automatically deploy both frontend and API functions
+   ```
+
+2. **Environment Variables**
+   Set these in your Vercel project settings:
+```env
+PUBLIC_POSTHOG_KEY=your_posthog_project_api_key
+PUBLIC_POSTHOG_DOMAIN=https://us.i.posthog.com
+PRIVATE_POSTHOG_KEY=your_posthog_private_api_key
+POSTHOG_PERSONAL_API_KEY=your_posthog_personal_api_key
+POSTHOG_PROJECT_ID=your_posthog_project_id
+```
+
+### Available Scripts
+
+- `npm run dev` - Start Next.js development server
+- `npm run api-dev` - Start API development server with hot reload
+- `npm run dev:full` - Start both frontend and backend in development
+- `npm run api-build` - Build TypeScript API for production
+- `npm run api-start` - Start production API server
+- `npm run build` - Build Next.js application
+- `npm start` - Start production Next.js server
 
 The backend implements A/B testing with the following approach:
 

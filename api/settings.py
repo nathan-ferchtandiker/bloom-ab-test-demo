@@ -1,2 +1,0 @@
-OLD_PIPELINE = "a"
-NEW_PIPELINE = "b"
