@@ -1,5 +1,9 @@
 # Bloom A/B Test Demo
 
+## What is this Demo?
+
+This demo showcases how to evaluate code generation pipelines for Bloom using PostHog analytics. Two pipelines (A and B) generate mobile apps, which are simulated by images of mobile app screens. Users are presented with these app variants and asked to select which app they think is better. All user selections and interactions are tracked with PostHog. Additionally, the application features a dashboard that pulls data from PostHog and displays analytics—including statistical significance testing—to determine whether pipeline B (the new pipeline) performs better than pipeline A (the old pipeline).
+
 A full-stack application demonstrating A/B testing for Bloom app generation pipelines. The project consists of a Next.js frontend with a Node.js/TypeScript backend API, featuring real-time analytics dashboard and PostHog integration for event tracking.
 
 ## Project Overview
