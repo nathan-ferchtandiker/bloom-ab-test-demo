@@ -89,7 +89,7 @@ app/
 - Selection tracking
 
 ### API Integration
-The frontend communicates with the Flask backend through Next.js API rewrites:
+The frontend communicates with the Node.js/Express backend through Next.js API rewrites:
 - Development: `http://127.0.0.1:5328/api/*`
 - Production: `/api/*`
 
@@ -303,7 +303,7 @@ storage = {
 
 ### Database Integration
 
-The `database_client.py` provides a flexible interface for:
+The `database-client.ts` provides a flexible interface for:
 - Storing generated apps
 - Tracking user selections
 - Managing A/B test data
