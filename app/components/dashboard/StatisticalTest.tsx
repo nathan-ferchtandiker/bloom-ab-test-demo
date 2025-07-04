@@ -1,10 +1,16 @@
+import React, { useState } from 'react';
+
 interface StatisticalTestProps {
   pipelineA: {
     total_shows: number;
+    ab_test_shows: number;
+    ab_test_selections: number;
     selections: number;
   };
   pipelineB: {
     total_shows: number;
+    ab_test_shows: number;
+    ab_test_selections: number;
     selections: number;
   };
   twoSidedTest: boolean;
@@ -84,15 +90,47 @@ const chiSquareTest = (aSelections: number, aShows: number, bSelections: number,
   };
 };
 
+const tooltipStyle = {
+  position: 'absolute' as const,
+  zIndex: 10,
+  background: 'rgba(55, 65, 81, 0.95)',
+  color: 'white',
+  padding: '6px 12px',
+  borderRadius: '6px',
+  fontSize: '0.875rem',
+  whiteSpace: 'pre-line' as const,
+  top: '100%',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  marginTop: '0.25rem',
+  pointerEvents: 'none' as const
+};
+
 export default function StatisticalTest({ pipelineA, pipelineB, twoSidedTest }: StatisticalTestProps) {
-  // Calculate statistical significance
+  const [tooltip, setTooltip] = useState<string | null>(null);
+  const [tooltipIdx, setTooltipIdx] = useState<string | null>(null);
+  const showTooltip = (text: string, idx: string) => {
+    setTooltip(text);
+    setTooltipIdx(idx);
+  };
+  const hideTooltip = () => {
+    setTooltip(null);
+    setTooltipIdx(null);
+  };
+
+  // Calculate statistical significance using A/B Test Selections and Shows
   const significanceTest = chiSquareTest(
-    pipelineA.selections,
-    pipelineA.total_shows,
-    pipelineB.selections,
-    pipelineB.total_shows,
+    pipelineA.ab_test_selections,
+    pipelineA.ab_test_shows,
+    pipelineB.ab_test_selections,
+    pipelineB.ab_test_shows,
     twoSidedTest
   );
+
+  // Calculate selection rates as proportion of total A/B Test selections
+  const totalAbSelections = pipelineA.ab_test_selections + pipelineB.ab_test_selections;
+  const aSelectionRate = totalAbSelections > 0 ? pipelineA.ab_test_selections / totalAbSelections : 0;
+  const bSelectionRate = totalAbSelections > 0 ? pipelineB.ab_test_selections / totalAbSelections : 0;
 
   return (
     <div className="bg-white rounded-lg shadow p-6 mb-8">
@@ -101,38 +139,73 @@ export default function StatisticalTest({ pipelineA, pipelineB, twoSidedTest }: 
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <h4 className="text-md font-medium text-gray-700 mb-3">Selection Rates</h4>
+          <h4 className="text-md font-medium text-gray-700 mb-3">A/B Test Selection Rates</h4>
           <div className="space-y-2">
-            <div className="flex justify-between">
+            <div
+              className="flex justify-between relative cursor-pointer"
+              onMouseEnter={() => showTooltip('Proportion of A/B test selections for Pipeline A.', 'a-rate')}
+              onMouseLeave={hideTooltip}
+            >
               <span className="text-gray-600">Pipeline A:</span>
               <span className="font-semibold text-gray-900">
-                {significanceTest.aRate.toFixed(3)} ({pipelineA.selections}/{pipelineA.total_shows})
+                {aSelectionRate.toFixed(3)} ({pipelineA.ab_test_selections}/{totalAbSelections})
               </span>
+              {tooltip && tooltipIdx === 'a-rate' && (
+                <span style={tooltipStyle}>{tooltip}</span>
+              )}
             </div>
-            <div className="flex justify-between">
+            <div
+              className="flex justify-between relative cursor-pointer"
+              onMouseEnter={() => showTooltip('Proportion of A/B test selections for Pipeline B.', 'b-rate')}
+              onMouseLeave={hideTooltip}
+            >
               <span className="text-gray-600">Pipeline B:</span>
               <span className="font-semibold text-gray-900">
-                {significanceTest.bRate.toFixed(3)} ({pipelineB.selections}/{pipelineB.total_shows})
+                {bSelectionRate.toFixed(3)} ({pipelineB.ab_test_selections}/{totalAbSelections})
               </span>
+              {tooltip && tooltipIdx === 'b-rate' && (
+                <span style={tooltipStyle}>{tooltip}</span>
+              )}
             </div>
           </div>
         </div>
         <div>
           <h4 className="text-md font-medium text-gray-700 mb-3">Test Results</h4>
           <div className="space-y-2">
-            <div className="flex justify-between">
+            <div
+              className="flex justify-between relative cursor-pointer"
+              onMouseEnter={() => showTooltip('Chi-Square test statistic for significance.', 'chi')}
+              onMouseLeave={hideTooltip}
+            >
               <span className="text-gray-600">Chi-Square Statistic:</span>
               <span className="font-semibold text-gray-900">{significanceTest.chiSquare.toFixed(3)}</span>
+              {tooltip && tooltipIdx === 'chi' && (
+                <span style={tooltipStyle}>{tooltip}</span>
+              )}
             </div>
-            <div className="flex justify-between">
+            <div
+              className="flex justify-between relative cursor-pointer"
+              onMouseEnter={() => showTooltip('Probability the observed difference is due to chance.', 'pval')}
+              onMouseLeave={hideTooltip}
+            >
               <span className="text-gray-600">P-Value:</span>
               <span className="font-semibold text-gray-900">{significanceTest.pValue.toFixed(4)}</span>
+              {tooltip && tooltipIdx === 'pval' && (
+                <span style={tooltipStyle}>{tooltip}</span>
+              )}
             </div>
-            <div className="flex justify-between">
+            <div
+              className="flex justify-between relative cursor-pointer"
+              onMouseEnter={() => showTooltip('Whether the result is statistically significant at α=0.05.', 'sig')}
+              onMouseLeave={hideTooltip}
+            >
               <span className="text-gray-600">Significant (α=0.05):</span>
               <span className={`font-semibold ${significanceTest.isSignificant ? 'text-green-600' : 'text-red-600'}`}>
                 {significanceTest.isSignificant ? 'Yes' : 'No'}
               </span>
+              {tooltip && tooltipIdx === 'sig' && (
+                <span style={tooltipStyle}>{tooltip}</span>
+              )}
             </div>
           </div>
         </div>

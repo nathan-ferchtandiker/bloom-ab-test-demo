@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import PhonePreviewContainer from './components/PhonePreviewContainer';
 import Chat from './components/Chat';
 import type { BloomApp } from './components/types';
+import { v4 as uuidv4 } from 'uuid';
 
 // Add PostHog type declaration
 declare global {
@@ -18,6 +19,7 @@ const getDefaultApp = (): BloomApp => ({ id: 'default', image: null});
 
 export default function Home() {
   const [apps, setApps] = useState<BloomApp[]>([getDefaultApp()]);
+  const [lastShowId, setLastShowId] = useState<string | null>(null);
 
   const handleSendMessage = async (message: string) => {
     try {
@@ -29,10 +31,45 @@ export default function Home() {
       });
       if (!res.ok) throw new Error('Failed to fetch apps');
       const data = await res.json();
-      if (Array.isArray(data.apps)) {
+      if (Array.isArray(data.apps) && data.apps.length > 0) {
         setApps(data.apps);
+        // Always generate a unique show_id for this display
+        const showId = uuidv4();
+        // Send a separate bloom-app-show event for each app
+        if (typeof window !== 'undefined' && window.posthog) {
+          data.apps.forEach((app: BloomApp, idx: number) => {
+            window.posthog.capture('bloom-app-show', {
+              show_id: showId,
+              app_id: app.id,
+              origin_pipeline: app.origin_pipeline,
+              all_apps: data.apps.map((a: BloomApp) => a.id),
+              all_pipelines: data.apps.map((a: BloomApp) => a.origin_pipeline),
+              timestamp: new Date().toISOString(),
+              user_id: 'demo-user',
+              total_choices: data.apps.length,
+              app_index: idx
+            });
+          });
+        }
+        setLastShowId(showId);
       } else {
+        // No apps returned, still send a bloom-app-show event with app_id: null
         setApps([getDefaultApp()]);
+        const showId = uuidv4();
+        if (typeof window !== 'undefined' && window.posthog) {
+          window.posthog.capture('bloom-app-show', {
+            show_id: showId,
+            app_id: null,
+            origin_pipeline: null,
+            all_apps: [],
+            all_pipelines: [],
+            timestamp: new Date().toISOString(),
+            user_id: 'demo-user',
+            total_choices: 0,
+            app_index: null
+          });
+        }
+        setLastShowId(showId);
       }
     } catch (err) {
       console.error(err);
@@ -42,43 +79,25 @@ export default function Home() {
 
   const handleSelectApp = async (allApps: BloomApp[], selectedId: string) => {
     try {
-      // Send selection to PostHog for A/B testing analysis
       if (typeof window !== 'undefined' && window.posthog) {
         const selectedApp = allApps.find(app => app.id === selectedId);
-        
-        window.posthog.capture('ab_test_origin_pipeline', {
-          // List of apps
+        window.posthog.capture('bloom-app-select', {
+          show_id: lastShowId,
           all_apps: allApps.map(app => app.id),
-          
-          // List of pipelines
           all_pipelines: allApps.map(app => app.origin_pipeline),
-          
-          // Which app was selected
           selected_app: selectedId,
-          
-          // Which pipeline was selected
           selected_pipeline: selectedApp?.origin_pipeline,
-          
-          // Timestamp
           timestamp: new Date().toISOString(),
-          
-          // User ID
           user_id: 'demo-user',
-          
-          // Additional context for analysis
           total_choices: allApps.length,
           selection_index: allApps.findIndex(app => app.id === selectedId),
-          
-          // A/B testing specific properties
           experiment_name: 'demo_test'
         });
       }
-      
-      // Update the apps state to show only the selected app
       setApps(apps => apps.filter(app => app.id === selectedId));
+      setLastShowId(null); // Reset showId after selection
     } catch (err) {
       console.error(err);
-      // Optionally, handle error (e.g., show notification)
     }
   };
 

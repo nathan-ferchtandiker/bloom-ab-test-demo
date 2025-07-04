@@ -48,8 +48,6 @@ app.post("/api/app/selection", async (req, res) => {
 
   // For demonstration, just print the event. In production, store in DB or log.
   console.log(`User selected app: ${selectedId} from choices: ${choices} (user_id: ${userId})`);
-  
-  // Print each app's selection status
   if (appSelections) {
     console.log("App selection details:");
     for (const appSelection of appSelections) {
@@ -60,25 +58,22 @@ app.post("/api/app/selection", async (req, res) => {
     }
   }
 
-  // Send PostHog event
+  // Send PostHog event (now using bloom-app-select)
   const eventProperties = {
     selected_app_id: selectedId,
     total_choices: choices.length,
     choices: choices,
     app_selections: appSelections
   };
-  
   try {
     await capturePrivateEvent(
-      "app_selected",
+      "bloom-app-select",
       userId || "anonymous",
       eventProperties
     );
   } catch (error) {
     console.error("Error capturing PostHog event:", error);
   }
-
-  // Optionally, you could return some confirmation or next step
   res.json({ 
     status: "success", 
     selected_id: selectedId, 
@@ -87,16 +82,18 @@ app.post("/api/app/selection", async (req, res) => {
 });
 
 app.get("/api/abtest/events", async (req, res) => {
-  const eventName = "ab_test_origin_pipeline";
   const after = req.query.after as string;
   const before = req.query.before as string;
   const limit = parseInt(req.query.limit as string || "100");
-  
   try {
-    console.log(`Fetching events with params: event_name=${eventName}, after=${after}, before=${before}, limit=${limit}`);
-    const events = await fetchEvents(eventName, after, before, limit);
-    console.log(`Successfully fetched ${events.results?.length || 0} events`);
-    res.json(events);
+    // Fetch both bloom-app-show and bloom-app-select events
+    const [showEvents, selectEvents] = await Promise.all([
+      fetchEvents("bloom-app-show", after, before, limit),
+      fetchEvents("bloom-app-select", after, before, limit)
+    ]);
+    // Merge and sort by timestamp descending
+    const allEvents = [...(showEvents.results || []), ...(selectEvents.results || [])].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    res.json({ results: allEvents });
   } catch (error) {
     console.error(`Error in get_abtest_events: ${error}`);
     res.status(500).json({ 

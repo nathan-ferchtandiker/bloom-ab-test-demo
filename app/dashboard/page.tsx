@@ -24,6 +24,9 @@ interface ABTestEvent {
     variant?: string;
     all_variants?: string[];
     conversion?: boolean;
+    show_id?: string;
+    origin_pipeline?: string;
+    app_id?: string;
   };
   event: string;
   timestamp: string;
@@ -32,13 +35,15 @@ interface ABTestEvent {
 interface DashboardData {
   pipelineA: {
     total_shows: number;
+    ab_test_shows: number;
+    ab_test_selections: number;
     selections: number;
-    apps_generated: number;
   };
   pipelineB: {
     total_shows: number;
+    ab_test_shows: number;
+    ab_test_selections: number;
     selections: number;
-    apps_generated: number;
   };
   recentSelections: Array<{
     timestamp: string;
@@ -46,15 +51,21 @@ interface DashboardData {
     app_id: string;
     user_id: string;
   }>;
+  uniqueShowCount: number;
+  abTestStarted: number;
+  abTestCompleted: number;
 }
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData>({
-    pipelineA: { total_shows: 0, selections: 0, apps_generated: 0 },
-    pipelineB: { total_shows: 0, selections: 0, apps_generated: 0 },
-    recentSelections: []
+    pipelineA: { total_shows: 0, ab_test_shows: 0, ab_test_selections: 0, selections: 0 },
+    pipelineB: { total_shows: 0, ab_test_shows: 0, ab_test_selections: 0, selections: 0 },
+    recentSelections: [],
+    uniqueShowCount: 0,
+    abTestStarted: 0,
+    abTestCompleted: 0
   });
   const [timeRange, setTimeRange] = useState('24h');
   const [loading, setLoading] = useState(true);
@@ -89,97 +100,85 @@ export default function Dashboard() {
   };
 
   const processEvents = (events: ABTestEvent[]): DashboardData => {
-    const pipelineA = { total_shows: 0, selections: 0, apps_generated: 0 };
-    const pipelineB = { total_shows: 0, selections: 0, apps_generated: 0 };
+    // Separate events by type
+    const showEvents = events.filter(e => e.event === 'bloom-app-show');
+    const selectEvents = events.filter(e => e.event === 'bloom-app-select');
+
+    // Unique show_id set
+    const uniqueShowIds = new Set<string>();
+    showEvents.forEach(e => { if (e.properties.show_id) uniqueShowIds.add(e.properties.show_id); });
+
+    // Group bloom-app-show events by show_id
+    const showsById: Record<string, ABTestEvent[]> = {};
+    showEvents.forEach(e => {
+      const showId = e.properties.show_id;
+      if (!showId) return;
+      if (!showsById[showId]) showsById[showId] = [];
+      showsById[showId].push(e);
+    });
+
+    // Find which show_ids are A/B tests (i.e., both pipelines present)
+    const abTestShowIds = new Set<string>();
+    Object.entries(showsById).forEach(([showId, events]) => {
+      const pipelines = new Set(events.map(e => e.properties.origin_pipeline));
+      if (pipelines.has('a') && pipelines.has('b')) abTestShowIds.add(showId);
+    });
+
+    // Find A/B test show_ids that have a selection
+    const abTestShowIdsWithSelection = new Set<string>();
+    selectEvents.forEach(event => {
+      const showId = event.properties.show_id;
+      if (abTestShowIds.has(showId ?? '')) abTestShowIdsWithSelection.add(showId ?? '');
+    });
+
+    // For each pipeline, count total shows, ab test shows, ab test selections
+    const pipelineA = { total_shows: 0, ab_test_shows: 0, ab_test_selections: 0, selections: 0 };
+    const pipelineB = { total_shows: 0, ab_test_shows: 0, ab_test_selections: 0, selections: 0 };
     const recentSelections: Array<{timestamp: string, pipeline: string, app_id: string, user_id: string}> = [];
 
-    // Track unique app IDs per pipeline to calculate apps generated
-    const pipelineAAppIds = new Set<string>();
-    const pipelineBAppIds = new Set<string>();
-
-    console.log('Processing events:', events.length);
-    
-    events.forEach((event, eventIndex) => {
-      const props = event.properties;
-      const selectedPipeline = props.selected_pipeline;
-      const allApps = props.all_apps || [];
-      const allPipelines = props.all_pipelines || [];
-      
-      console.log(`Event ${eventIndex}:`, {
-        selectedPipeline,
-        allApps,
-        allPipelines,
-        hasListOfApps: !!props.all_apps,
-        hasListOfPipelines: !!props.all_pipelines,
-        allProperties: props
-      });
-      
-      // Count total shows - each event represents a "show" where both pipelines were displayed
-      // We count this event as a show for both pipelines since both were presented to the user
-      pipelineA.total_shows++;
-      pipelineB.total_shows++;
-      
-      // Count unique app IDs per pipeline for apps generated
-      if (allApps.length > 0 && allPipelines.length > 0) {
-        // Match apps with their pipelines
-        allApps.forEach((appId, index) => {
-          const pipeline = allPipelines[index];
-          if (pipeline === 'a') {
-            pipelineAAppIds.add(appId);
-          } else if (pipeline === 'b') {
-            pipelineBAppIds.add(appId);
-          }
-        });
-      } else {
-        // Fallback: if we don't have the arrays, use the selected app and pipeline
-        if (props.selected_app && selectedPipeline) {
-          if (selectedPipeline === 'a') {
-            pipelineAAppIds.add(props.selected_app);
-          } else if (selectedPipeline === 'b') {
-            pipelineBAppIds.add(props.selected_app);
-          }
-        }
+    // Count total shows and ab test shows
+    showEvents.forEach(event => {
+      const pipeline = event.properties.origin_pipeline;
+      const showId = event.properties.show_id;
+      if (pipeline === 'a') {
+        pipelineA.total_shows++;
+        if (abTestShowIds.has(showId ?? '')) pipelineA.ab_test_shows++;
+      } else if (pipeline === 'b') {
+        pipelineB.total_shows++;
+        if (abTestShowIds.has(showId ?? '')) pipelineB.ab_test_shows++;
       }
-      
-      // Count selections
-      if (selectedPipeline === 'a') {
-        pipelineA.selections++;
-      } else if (selectedPipeline === 'b') {
-        pipelineB.selections++;
-      }
+    });
 
+    // Count ab test selections
+    selectEvents.forEach(event => {
+      const selectedPipeline = event.properties.selected_pipeline;
+      const showId = event.properties.show_id;
+      if (abTestShowIds.has(showId ?? '')) {
+        if (selectedPipeline === 'a') pipelineA.ab_test_selections++;
+        else if (selectedPipeline === 'b') pipelineB.ab_test_selections++;
+      }
       // Add to recent selections
-      if (props.selected_app && selectedPipeline) {
+      if (event.properties.selected_app && selectedPipeline) {
         recentSelections.push({
           timestamp: event.timestamp,
           pipeline: selectedPipeline,
-          app_id: props.selected_app,
-          user_id: props.user_id || 'unknown'
+          app_id: event.properties.selected_app,
+          user_id: event.properties.user_id || 'unknown'
         });
       }
     });
 
-    console.log('Final counts:', {
-      pipelineA: { 
-        shows: pipelineA.total_shows, 
-        selections: pipelineA.selections,
-        uniqueAppIds: Array.from(pipelineAAppIds)
-      },
-      pipelineB: { 
-        shows: pipelineB.total_shows, 
-        selections: pipelineB.selections,
-        uniqueAppIds: Array.from(pipelineBAppIds)
-      }
-    });
-
-    // Apps generated is based on unique app IDs
-    pipelineA.apps_generated = pipelineAAppIds.size;
-    pipelineB.apps_generated = pipelineBAppIds.size;
+    // For compatibility with components expecting selections, set selections = ab_test_selections
+    pipelineA.selections = pipelineA.ab_test_selections;
+    pipelineB.selections = pipelineB.ab_test_selections;
 
     return {
       pipelineA,
       pipelineB,
-      recentSelections: recentSelections.slice(0, 10) // Keep only last 10
+      recentSelections: recentSelections.slice(0, 10),
+      uniqueShowCount: uniqueShowIds.size,
+      abTestStarted: abTestShowIds.size,
+      abTestCompleted: abTestShowIdsWithSelection.size
     };
   };
 
@@ -256,6 +255,9 @@ export default function Dashboard() {
           pipelineA={data.pipelineA}
           pipelineB={data.pipelineB}
           recentSelections={data.recentSelections}
+          uniqueShowCount={data.uniqueShowCount}
+          abTestStarted={data.abTestStarted}
+          abTestCompleted={data.abTestCompleted}
         />
         <SelectionsChart
           pipelineA={data.pipelineA}
